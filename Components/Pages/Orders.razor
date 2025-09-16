@@ -1,0 +1,73 @@
+﻿@page "/orders"
+@using CleaningApp.Models
+@rendermode InteractiveServer
+
+<h3>Lista zleceń</h3>
+
+<ul>
+	@foreach(var order in orders)
+		{
+		<li>
+			@order.CustomerName - @order.Address 
+			(@order.OrderDate.ToString("dd.MM.yyyy HH:mm")) 
+			@order.ServiceType
+			[@order.Status]
+		</li>
+		}
+</ul>
+
+<hr />
+
+<h3>Dodaj nowe zlecenie</h3>
+
+<EditForm Model="newOrder" OnValidSubmit="AddOrder" FormName="AddOrderForm">
+	<DataAnnotationsValidator /> 
+	<ValidationSummary />
+
+	<div class="mb-3">
+		<label>Imie i Nazwisko klienta:</label><br />
+		<InputText @bind-Value="newOrder.CustomerName" class="form-control" />
+		<ValidationMessage For="@(() => newOrder.CustomerName)" />
+	</div>
+
+	<div class="mb-3">
+		<label>Adres klienta:</label><br />
+		<InputText @bind-Value="newOrder.Address" class="form-control" />
+		<ValidationMessage For="@(() => newOrder.Address)" />
+	</div>
+
+	<div class="mb-3">
+		<label>Data zlecenia klienta:</label><br />
+		<InputDate @bind-Value="newOrder.OrderDate"  class="form-control" />
+		<ValidationMessage For="@(() => newOrder.OrderDate)" />
+	</div>
+
+	<div class="mb-3">
+		<label>Typ zlecenia klienta:</label><br />
+		<InputText @bind-Value="newOrder.ServiceType" class="form-control" />
+		<ValidationMessage For="@(() => newOrder.ServiceType)" />
+	</div>
+
+
+	<button type="submit" class="btn btn-primary">Dodaj Zlecenie</button>
+</EditForm>
+
+
+
+@code {
+	private List<Order> orders = new List<Order>
+	{
+	new Order { Id = 1, CustomerName = "Jan Kowalski", Address = "ul. Przykładowa 1, 00-001 Warszawa",ServiceType = "Clean kuchni", Status = "Oczekujące", OrderDate=DateTime.Today },
+	new Order { Id = 2, CustomerName = "Anna Nowak", Address = "ul. Testowa 2, 00-002 Kraków",ServiceType = "Clean sofy", Status = "W trakcie realizacji", OrderDate=DateTime.Today },
+	new Order { Id = 3, CustomerName = "Piotr Wiśniewski", Address = "ul. Sample 3, 00-003 Gdańsk",ServiceType = "Clean lazienki", Status = "Zakończone", OrderDate=DateTime.Today }
+	};
+	private Order newOrder = new Order { OrderDate = DateTime.Today };
+
+	private void AddOrder()
+	{
+		newOrder.Id = orders.Count + 1;
+		newOrder.Status = "Oczekujące";
+		orders.Add(newOrder);
+		newOrder = new Order { OrderDate = DateTime.Today };
+	}
+}
