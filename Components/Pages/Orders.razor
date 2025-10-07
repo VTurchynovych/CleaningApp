@@ -1,73 +1,215 @@
 ﻿@page "/orders"
 @using CleaningApp.Models
+@using CleaningApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext _context
 @rendermode InteractiveServer
 
 <h3>Lista zleceń</h3>
 
-<ul>
-	@foreach(var order in orders)
+<button class="btn btn-success mb-3" @onclick="OpenAddModal"> Dodaj nowe zlecenie</button>
+
+@if (orders == null)
+{
+	<p>Ładowanie...</p>
+}
+else if (!orders.Any())
+{
+	<p>Brak zleceń w bazie.</p>
+}
+else
+{
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th>Klient</th>
+				<th>Adres</th>
+				<th>Data</th>
+				<th>Usługa</th>
+				<th>Status</th>
+				<th>Akcje</th>
+			</tr>
+		</thead>
+		<tbody>
+		@foreach (var order in orders)
 		{
-		<li>
-			@order.CustomerName - @order.Address 
-			(@order.OrderDate.ToString("dd.MM.yyyy HH:mm")) 
-			@order.ServiceType
-			[@order.Status]
-		</li>
+			<tr>
+					<td>@order.CustomerName</td>
+					<td>@order.Address</td>
+					<td>@order.OrderDate.ToString("dd.MM.yyyy")</td>
+					<td>@order.ServiceType</td>
+					<td>@order.Status</td>
+					<td>
+						<select class="form-select" @onchange="e => UpdateStatus(order, e)">
+							@foreach (var status in Enum.GetValues<OrderStatus>())
+							{
+								<option value="@status" selected="@(order.Status == status)">
+									@status
+								</option>
+							}
+						</select>
+					</td>
+
+					<td>
+						<button class="btn btn-primary btn-sm" @onclick="() => EditOrder(order)">Edytuj</button>
+						<button class="btn btn-sm btn-danger" @onclick="() => DeleteOrder(order.Id)">Usuń</button>
+					</td>
+			</tr>
 		}
-</ul>
+		</tbody>
+	</table>
+}
+@* Modal — edit i add *@
+@if (showModal)
+{
+	<div class="modal-backdrop fade show"></div>
+	<div class="modal show d-block" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">@modalTitle</h5>
+					<button type="button" class="btn-close" @onclick="CloseModal"></button>
+				</div>
+				<div class="modal-body">
+					<EditForm Model="currentOrder" OnValidSubmit="SaveOrder">
+						<DataAnnotationsValidator />
+						<ValidationSummary />
 
-<hr />
+						<div class="mb-3">
+							<label>Imię i nazwisko klienta</label>
+							<InputText class="form-control" @bind-Value="currentOrder.CustomerName" />
+							<ValidationMessage For="@(() => currentOrder.CustomerName)" />
+						</div>
 
-<h3>Dodaj nowe zlecenie</h3>
+						<div class="mb-3">
+							<label>Adres</label>
+							<InputText class="form-control" @bind-Value="currentOrder.Address" />
+						</div>
 
-<EditForm Model="newOrder" OnValidSubmit="AddOrder" FormName="AddOrderForm">
-	<DataAnnotationsValidator /> 
-	<ValidationSummary />
+						<div class="mb-3">
+							<label>Data zlecenia</label>
+							<InputDate class="form-control" @bind-Value="currentOrder.OrderDate" />
+						</div>
 
-	<div class="mb-3">
-		<label>Imie i Nazwisko klienta:</label><br />
-		<InputText @bind-Value="newOrder.CustomerName" class="form-control" />
-		<ValidationMessage For="@(() => newOrder.CustomerName)" />
+						<div class="mb-3">
+							<label>Typ usługi</label>
+							<InputText class="form-control" @bind-Value="currentOrder.ServiceType" />
+						</div>
+
+						<div class="mb-3">
+							<label>Status</label>
+							<select class="form-select" @bind="currentOrder.Status">
+								@foreach (var status in Enum.GetValues<OrderStatus>())
+								{
+									<option value="@status">@status</option>
+								}
+							</select>
+						</div>
+
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" @onclick="CloseModal">Anuluj</button>
+							<button type="submit" class="btn btn-success">Zapisz</button>
+						</div>
+					</EditForm>
+				</div>
+			</div>
+		</div>
 	</div>
-
-	<div class="mb-3">
-		<label>Adres klienta:</label><br />
-		<InputText @bind-Value="newOrder.Address" class="form-control" />
-		<ValidationMessage For="@(() => newOrder.Address)" />
-	</div>
-
-	<div class="mb-3">
-		<label>Data zlecenia klienta:</label><br />
-		<InputDate @bind-Value="newOrder.OrderDate"  class="form-control" />
-		<ValidationMessage For="@(() => newOrder.OrderDate)" />
-	</div>
-
-	<div class="mb-3">
-		<label>Typ zlecenia klienta:</label><br />
-		<InputText @bind-Value="newOrder.ServiceType" class="form-control" />
-		<ValidationMessage For="@(() => newOrder.ServiceType)" />
-	</div>
-
-
-	<button type="submit" class="btn btn-primary">Dodaj Zlecenie</button>
-</EditForm>
-
-
+}
 
 @code {
-	private List<Order> orders = new List<Order>
-	{
-	new Order { Id = 1, CustomerName = "Jan Kowalski", Address = "ul. Przykładowa 1, 00-001 Warszawa",ServiceType = "Clean kuchni", Status = "Oczekujące", OrderDate=DateTime.Today },
-	new Order { Id = 2, CustomerName = "Anna Nowak", Address = "ul. Testowa 2, 00-002 Kraków",ServiceType = "Clean sofy", Status = "W trakcie realizacji", OrderDate=DateTime.Today },
-	new Order { Id = 3, CustomerName = "Piotr Wiśniewski", Address = "ul. Sample 3, 00-003 Gdańsk",ServiceType = "Clean lazienki", Status = "Zakończone", OrderDate=DateTime.Today }
-	};
-	private Order newOrder = new Order { OrderDate = DateTime.Today };
+	private List<Order> orders;
+	private bool showModal = false;
+	private string modalTitle;
+	private Order currentOrder;
+	private bool isEditing = false;
 
-	private void AddOrder()
+
+	protected override async Task OnInitializedAsync()
 	{
-		newOrder.Id = orders.Count + 1;
-		newOrder.Status = "Oczekujące";
-		orders.Add(newOrder);
-		newOrder = new Order { OrderDate = DateTime.Today };
+		orders = await _context.Orders.ToListAsync();
+	}
+
+	private async Task UpdateStatus(Order order, ChangeEventArgs e)
+	{
+		if (Enum.TryParse<OrderStatus>(e.Value.ToString(), out var newStatus))
+		{
+			order.Status = newStatus;
+			_context.Orders.Update(order);
+			await _context.SaveChangesAsync();
+			orders = await _context.Orders.ToListAsync();
+		}
+	}
+
+	private void OpenAddModal()
+	{
+		currentOrder = new Order
+		{
+			OrderDate = DateTime.Today,
+			Status = OrderStatus.Oczekujące
+		};
+		modalTitle = "Dodaj nowe zlecenie";
+		isEditing = false;
+		showModal = true;
+	}
+
+	private void EditOrder(Order order)
+	{
+		currentOrder = new Order
+		{
+			Id = order.Id,
+			CustomerName = order.CustomerName,
+			Address = order.Address,
+			OrderDate = order.OrderDate,
+			ServiceType = order.ServiceType,
+			Status = order.Status
+		};
+		modalTitle = "Edytuj zlecenie";
+		isEditing = true;
+		showModal = true;
+	}
+
+	private void CloseModal()
+	{
+		showModal = false;
+		currentOrder = null;
+	}
+
+	private async Task SaveOrder()
+	{
+		if (isEditing)
+		{
+			var existingOrder = await _context.Orders.FindAsync(currentOrder.Id);
+			if (existingOrder != null)
+			{
+				existingOrder.CustomerName = currentOrder.CustomerName;
+				existingOrder.Address = currentOrder.Address;
+				existingOrder.OrderDate = currentOrder.OrderDate;
+				existingOrder.ServiceType = currentOrder.ServiceType;
+				existingOrder.Status = currentOrder.Status;
+
+				_context.Orders.Update(existingOrder);
+			}
+		}
+		else
+		{
+			_context.Orders.Add(currentOrder);
+		}
+
+		await _context.SaveChangesAsync();
+		orders = await _context.Orders.ToListAsync();
+		showModal = false;
+	}
+
+
+	private async Task DeleteOrder(int id)
+	{
+		var order = await _context.Orders.FindAsync(id);
+		if (order != null)
+		{
+			_context.Orders.Remove(order);
+			await _context.SaveChangesAsync();
+			orders = await _context.Orders.ToListAsync();
+		}
 	}
 }
