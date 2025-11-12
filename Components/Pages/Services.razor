@@ -1,0 +1,144 @@
+﻿@page "/services"
+@using CleaningApp.Models
+@using CleaningApp.Data.Services
+@inject ServiceService _serviceService
+@rendermode InteractiveServer
+
+<h3>Zarządzanie Usługami</h3>
+
+<button class="btn btn-success mb-3" @onclick="OpenAddModal">Dodaj nową usługę</button>
+
+@if (services == null)
+{
+    <p>Ładowanie...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nazwa Usługi</th>
+                <th>Cena Domyślna</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var service in services)
+            {
+                <tr>
+                    <td>@service.Name</td>
+                    <td>@service.DefaultPrice?.ToString("C")</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditService(service)">Edytuj</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteService(service.Id)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@* Modal do edycji i dodawania *@
+@if (showModal)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="currentService" OnValidSubmit="SaveService">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label>Nazwa usługi</label>
+                            <InputText class="form-control" @bind-Value="currentService.Name" />
+                            <ValidationMessage For="@(() => currentService.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Cena domyślna</label>
+                            <InputNumber class="form-control" @bind-Value="currentService.DefaultPrice" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Anuluj</button>
+                            <button type="submit" class="btn btn-success">Zapisz</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private List<Service> services = new List<Service>();
+    private Service currentService = new Service();
+    private bool showModal = false;
+    private string modalTitle = "";
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServices();
+    }
+
+    private async Task LoadServices()
+    {
+        services = await _serviceService.GetServicesAsync();
+    }
+
+    private void OpenAddModal()
+    {
+        currentService = new Service();
+        modalTitle = "Dodaj nową usługę";
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void EditService(Service service)
+    {
+        currentService = new Service
+        {
+            Id = service.Id,
+            Name = service.Name,
+            DefaultPrice = service.DefaultPrice
+        };
+        modalTitle = "Edytuj usługę";
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentService = new Service();
+    }
+
+    private async Task SaveService()
+    {
+        if (isEditing)
+        {
+            await _serviceService.UpdateServiceAsync(currentService);
+        }
+        else
+        {
+            await _serviceService.AddServiceAsync(currentService);
+        }
+
+        await LoadServices();
+        showModal = false;
+    }
+
+    private async Task DeleteService(int id)
+    {
+        await _serviceService.DeleteServiceAsync(id);
+        await LoadServices();
+    }
+}

@@ -38,6 +38,7 @@ namespace CleaningApp.Data
                 {
                     FullName = adminFullName,
                     Email = adminEmail,
+                    UserName = adminEmail,
                     PhoneNumber = adminPhoneNumber,
                     EmailConfirmed = true
                 };
