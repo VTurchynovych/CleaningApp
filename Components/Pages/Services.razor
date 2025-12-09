@@ -1,44 +1,49 @@
 ﻿@page "/services"
 @using CleaningApp.Models
 @using CleaningApp.Data.Services
+@using System.IO
 @inject ServiceService _serviceService
+@inject IWebHostEnvironment _env
 @rendermode InteractiveServer
 
-<h3>Zarządzanie Usługami</h3>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>🛠️ Zarządzanie Usługami</h3>
+        <button class="btn btn-success shadow-sm" @onclick="OpenAddModal">
+            + Dodaj nową usługę
+        </button>
+    </div>
 
-<button class="btn btn-success mb-3" @onclick="OpenAddModal">Dodaj nową usługę</button>
-
-@if (services == null)
-{
-    <p>Ładowanie...</p>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Nazwa Usługi</th>
-                <th>Cena Domyślna</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
+    @if (services == null)
+    {
+        <div class="spinner-border text-primary"></div>
+    }
+    else
+    {
+        <div class="row">
             @foreach (var service in services)
             {
-                <tr>
-                    <td>@service.Name</td>
-                    <td>@service.DefaultPrice?.ToString("C")</td>
-                    <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => EditService(service)">Edytuj</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteService(service.Id)">Usuń</button>
-                    </td>
-                </tr>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="position-relative" style="height: 200px; overflow: hidden;">
+                            <img src="@(string.IsNullOrEmpty(service.ImageUrl) ? "/img/default.jpg" : service.ImageUrl)"
+                                 class="card-img-top h-100 w-100" style="object-fit: cover;" alt="@service.Name">
+                        </div>
+                        <div class="card-body text-center">
+                            <h5 class="card-title fw-bold">@service.Name</h5>
+                            <h6 class="text-primary fw-bold mb-3">@service.DefaultPrice?.ToString("C")</h6>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditService(service)">Edytuj</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteService(service.Id)">Usuń</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             }
-        </tbody>
-    </table>
-}
+        </div>
+    }
+</div>
 
-@* Modal do edycji i dodawania *@
 @if (showModal)
 {
     <div class="modal-backdrop fade show"></div>
@@ -52,17 +57,29 @@ else
                 <div class="modal-body">
                     <EditForm Model="currentService" OnValidSubmit="SaveService">
                         <DataAnnotationsValidator />
-                        <ValidationSummary />
 
                         <div class="mb-3">
                             <label>Nazwa usługi</label>
                             <InputText class="form-control" @bind-Value="currentService.Name" />
-                            <ValidationMessage For="@(() => currentService.Name)" />
                         </div>
 
                         <div class="mb-3">
-                            <label>Cena domyślna</label>
+                            <label>Cena domyślna (zł)</label>
                             <InputNumber class="form-control" @bind-Value="currentService.DefaultPrice" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Zdjęcie usługi</label>
+                            <InputFile OnChange="HandleFileSelected" class="form-control" accept=".jpg,.jpeg,.png" />
+                            <div class="form-text text-muted">Wybierz plik z komputera (max 5MB).</div>
+
+                            @if (!string.IsNullOrEmpty(currentService.ImageUrl))
+                            {
+                                <div class="mt-2">
+                                    <small>Obecne:</small>
+                                    <img src="@currentService.ImageUrl" width="100" class="rounded border ms-2" />
+                                </div>
+                            }
                         </div>
 
                         <div class="modal-footer">
@@ -76,14 +93,14 @@ else
     </div>
 }
 
-
 @code {
-    private List<Service> services = new List<Service>();
-    private Service currentService = new Service();
+    private List<Service> services;
+    private Service currentService = new();
     private bool showModal = false;
     private string modalTitle = "";
     private bool isEditing = false;
 
+    private IBrowserFile? uploadedFile;
     protected override async Task OnInitializedAsync()
     {
         await LoadServices();
@@ -94,12 +111,46 @@ else
         services = await _serviceService.GetServicesAsync();
     }
 
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+    }
+
+    private async Task SaveService()
+    {
+        if (uploadedFile != null)
+        {
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(uploadedFile.Name)}";
+
+            var folderPath = Path.Combine(_env.WebRootPath, "img", "services");
+            Directory.CreateDirectory(folderPath); // Upewnij się, że folder istnieje
+
+            var fullPath = Path.Combine(folderPath, fileName);
+
+            await using FileStream fs = new(fullPath, FileMode.Create);
+            await uploadedFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(fs);
+
+            currentService.ImageUrl = $"/img/services/{fileName}";
+        }
+
+        if (isEditing)
+            await _serviceService.UpdateServiceAsync(currentService);
+        else
+            await _serviceService.AddServiceAsync(currentService);
+
+        showModal = false;
+        uploadedFile = null;
+        await LoadServices();
+    }
+
+    //STANDARDOWE METODY
     private void OpenAddModal()
     {
         currentService = new Service();
-        modalTitle = "Dodaj nową usługę";
+        modalTitle = "Dodaj usługę";
         isEditing = false;
         showModal = true;
+        uploadedFile = null;
     }
 
     private void EditService(Service service)
@@ -108,33 +159,16 @@ else
         {
             Id = service.Id,
             Name = service.Name,
-            DefaultPrice = service.DefaultPrice
+            DefaultPrice = service.DefaultPrice,
+            ImageUrl = service.ImageUrl
         };
         modalTitle = "Edytuj usługę";
         isEditing = true;
         showModal = true;
+        uploadedFile = null;
     }
 
-    private void CloseModal()
-    {
-        showModal = false;
-        currentService = new Service();
-    }
-
-    private async Task SaveService()
-    {
-        if (isEditing)
-        {
-            await _serviceService.UpdateServiceAsync(currentService);
-        }
-        else
-        {
-            await _serviceService.AddServiceAsync(currentService);
-        }
-
-        await LoadServices();
-        showModal = false;
-    }
+    private void CloseModal() => showModal = false;
 
     private async Task DeleteService(int id)
     {

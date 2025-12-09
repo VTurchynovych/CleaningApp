@@ -1,74 +1,128 @@
 ﻿@page "/orders"
-
 @using CleaningApp.Models
 @using CleaningApp.Data
 @using CleaningApp.Data.Services
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 @inject OrderService _orderService
+@inject UserService _userService
 @inject ApplicationDbContext _context
+@inject IJSRuntime _js
 @rendermode InteractiveServer
 
-<h3>Lista zleceń</h3>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>📦 Zarządzanie Zleceniami</h3>
+    </div>
 
-<button class="btn btn-success mb-3" @onclick="OpenAddModal"> Dodaj nowe zlecenie</button>
+    <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" placeholder="Szukaj (klient, adres, ID)..."
+                           @bind="searchText" @bind:event="oninput" @onkeyup="SearchData" />
+                </div>
+            </div>
 
-@if (orders == null)
-{
-    <p>Ładowanie...</p>
-}
-else if (!orders.Any())
-{
-    <p>Brak zleceń w bazie.</p>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Klient</th>
-                <th>Adres</th>
-                <th>Data</th>
-                <th>Usługa</th>
-                <th>Status</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var order in orders)
-            {
-                <tr>
-                    <td>@(order.Client?.FullName ?? "Brak klienta")</td>
-                    <td>@order.Address</td>
-                    <td>@order.OrderDate.ToString("dd.MM.yyyy")</td>
-                    <td>@(order.Service?.Name ?? "Brak usługi")</td>
-                    <td>@order.Status</td>
-                    <td>
-                        <select class="form-select" @onchange="e => UpdateStatus(order, e)">
-                            @foreach (var status in Enum.GetValues<OrderStatus>())
-                            {
-                                <option value="@status" selected="@(order.Status == status)">
-                                    @status
-                                </option>
-                            }
-                        </select>
-                    </td>
+            <div class="col-md-3">
+                <select class="form-select" @onchange="FilterByStatus">
+                    <option value="">Wszystkie statusy</option>
+                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+            </div>
 
-                    <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => EditOrder(order)">Edytuj</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteOrder(order.Id)">Usuń</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+            <div class="col-md-4 text-end">
+                <button class="btn btn-outline-secondary me-2" @onclick="ExportToCsv">
+                    📂 Eksport CSV
+                </button>
+                <button class="btn btn-success" @onclick="OpenAddModal">
+                    + Dodaj
+                </button>
+            </div>
+        </div>
+    </div>
 
-@* Modal — edit i add *@
+    @if (orders == null)
+    {
+        <div class="spinner-border text-primary"></div>
+    }
+    else if (!orders.Any())
+    {
+        <div class="alert alert-info">Brak zleceń spełniających kryteria.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle shadow-sm bg-white rounded">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Data</th>
+                        <th>Klient</th>
+                        <th>Adres</th>
+                        <th>Usługa</th>
+                        <th>Przypisany Pracownik</th>
+                        <th>Status</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in orders)
+                    {
+                        <tr>
+                            <td>#@order.Id</td>
+                            <td>@order.OrderDate.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                @(order.Client?.FullName ?? "Brak danych")
+                                <br />
+                                <small class="text-muted">@order.Client?.Email</small>
+                            </td>
+                            <td>@order.Address</td>
+                            <td>
+                                <span class="fw-bold text-primary">@(order.Service?.Name ?? "-")</span>
+                            </td>
+                            <td>
+                                @if (order.Worker != null)
+                                {
+                                    <span class="badge bg-indigo text-white" style="background-color: #6610f2;">
+                                        👷‍♂️ @order.Worker.FullName
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small fst-italic">Nieprzypisany</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @GetBadgeClass(order.Status)">@order.Status</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditOrder(order)">
+                                    ✏️ Edytuj
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteOrder(order.Id)">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@* --- MODAL EDYCJI / DODAWANIA --- *@
 @if (showModal)
 {
     <div class="modal-backdrop fade show"></div>
     <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">@modalTitle</h5>
@@ -77,47 +131,69 @@ else
                 <div class="modal-body">
                     <EditForm Model="currentOrder" OnValidSubmit="SaveOrder">
                         <DataAnnotationsValidator />
-                        <ValidationSummary />
 
                         <div class="mb-3">
-                            <label>Klient</label>
+                            <label class="form-label">Klient</label>
                             <InputSelect class="form-select" @bind-Value="currentOrder.ClientId">
-                                <option value="">-- Wybierz klienta --</option>
-                                @foreach (var user in allClients)
+                                <option value="">Wybierz klienta</option>
+                                @foreach (var client in allClients)
                                 {
-                                    <option value="@user.Id">@user.FullName (@user.Email)</option>
+                                    <option value="@client.Id">@client.FullName (@client.Email)</option>
                                 }
                             </InputSelect>
-                            <ValidationMessage For="@(() => currentOrder.ClientId)" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Usługa</label>
+                                <InputSelect class="form-select" @bind-Value="currentOrder.ServiceId">
+                                    <option value="0">Wybierz</option>
+                                    @foreach (var s in allServices)
+                                    {
+                                        <option value="@s.Id">@s.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Data</label>
+                                <InputDate class="form-control" @bind-Value="currentOrder.OrderDate" />
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <label>Adres</label>
+                            <label class="form-label">Adres</label>
                             <InputText class="form-control" @bind-Value="currentOrder.Address" />
-                            <ValidationMessage For="@(() => currentOrder.Address)" />
                         </div>
 
                         <div class="mb-3">
-                            <label>Typ usługi</label>
-                            <InputSelect TValue="int" class="form-select" @bind-Value="currentOrder.ServiceId">
-                                <option value="0">-- Wybierz usługę --</option>
-                                @foreach (var service in allServices)
+                            <label class="form-label">Uwagi od Klienta</label>
+                            <InputTextArea class="form-control" @bind-Value="currentOrder.ClientNote" rows="2" />
+                        </div>
+
+                        <hr />
+
+                        <div class="mb-3">
+                            <label class="form-label text-danger fw-bold">🔒 Notatki wewnętrzne (Tylko dla pracownika)</label>
+                            <InputTextArea class="form-control" @bind-Value="currentOrder.InternalNotes" rows="2"
+                                           placeholder="Np. Kod do domofonu, uwagi o psie..." style="background-color: #fff5f5;" />
+                            <div class="form-text text-danger">Klient tego nie zobaczy.</div>
+                        </div>
+
+                        <div class="mb-3 bg-light p-3 rounded border">
+                            <label class="form-label fw-bold text-primary">👷‍♂️ Przypisz pracownika</label>
+                            <InputSelect class="form-select" @bind-Value="currentOrder.WorkerId">
+                                <option value="">Nieprzypisany (Oczekuje)</option>
+                                @foreach (var worker in allWorkers)
                                 {
-                                    <option value="@service.Id">@service.Name</option>
+                                    <option value="@worker.Id">@worker.FullName (@worker.Email)</option>
                                 }
                             </InputSelect>
-                            <ValidationMessage For="@(() => currentOrder.ServiceId)" />
+                            <div class="form-text">Wybrany pracownik zobaczy to zlecenie w swoim panelu "Moje Zadania".</div>
                         </div>
 
                         <div class="mb-3">
-                            <label>Data zlecenia</label>
-                            <InputDate class="form-control" @bind-Value="currentOrder.OrderDate" />
-                            <ValidationMessage For="@(() => currentOrder.OrderDate)" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label>Status</label>
-                            <InputSelect TValue="OrderStatus" class="form-select" @bind-Value="currentOrder.Status">
+                            <label class="form-label">Status</label>
+                            <InputSelect class="form-select" @bind-Value="currentOrder.Status">
                                 @foreach (var status in Enum.GetValues<OrderStatus>())
                                 {
                                     <option value="@status">@status</option>
@@ -127,7 +203,7 @@ else
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" @onclick="CloseModal">Anuluj</button>
-                            <button type="submit" class="btn btn-success">Zapisz</button>
+                            <button type="submit" class="btn btn-success">Zapisz zmiany</button>
                         </div>
                     </EditForm>
                 </div>
@@ -137,46 +213,54 @@ else
 }
 
 @code {
-    // Poprawka CS8618: Inicjujemy pola
-    private List<Order> orders = new List<Order>();
-    private bool showModal = false;
-    private string modalTitle = "";
-    private Order currentOrder = new Order();
-    private bool isEditing = false;
-
+    private List<Order> orders = new();
     private List<ApplicationUser> allClients = new();
     private List<Service> allServices = new();
+    private List<UserViewModel> allWorkers = new();
+
+    private bool showModal = false;
+    private string modalTitle = "";
+    private Order currentOrder = new();
+    private bool isEditing = false;
+
+    private string searchText = "";
+    private OrderStatus? statusFilter = null;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadOrders();
-
-        allClients = await _context.Users.Where(u => u.FullName != null).ToListAsync();
         allServices = await _context.Services.ToListAsync();
+        allClients = await _context.Users.ToListAsync();
+
+        var usersVM = await _userService.GetAllUsersAsync();
+        allWorkers = usersVM.Where(u => u.IsEmployee).ToList();
+
+        await SearchData();
     }
 
-    private async Task LoadOrders()
+    private async Task SearchData()
     {
-        orders = await _orderService.GetOrdersAsync();
+        orders = await _orderService.SearchOrdersAsync(searchText, statusFilter);
     }
 
-    private async Task UpdateStatus(Order order, ChangeEventArgs e)
+    private async Task FilterByStatus(ChangeEventArgs e)
     {
-        if (e.Value is not null && Enum.TryParse<OrderStatus>(e.Value.ToString(), out var newStatus))
+        if (string.IsNullOrEmpty(e.Value?.ToString()))
         {
-            await _orderService.UpdateOrderStatusAsync(order.Id, newStatus);
-            await LoadOrders();
+            statusFilter = null;
         }
+        else
+        {
+            statusFilter = Enum.Parse<OrderStatus>(e.Value.ToString());
+        }
+        await SearchData();
     }
 
     private void OpenAddModal()
     {
-        currentOrder = new Order
-        {
-            OrderDate = DateTime.Today,
-            Status = OrderStatus.Oczekujące
-        };
-        modalTitle = "Dodaj nowe zlecenie";
+        currentOrder = new Order { OrderDate = DateTime.Today.AddDays(1), Status = OrderStatus.Oczekujące };
+        if (allServices.Any()) currentOrder.ServiceId = allServices.First().Id;
+
+        modalTitle = "Nowe Zlecenie";
         isEditing = false;
         showModal = true;
     }
@@ -191,38 +275,52 @@ else
             ServiceId = order.ServiceId,
             Address = order.Address,
             OrderDate = order.OrderDate,
-            Status = order.Status
+            Status = order.Status,
+            InternalNotes = order.InternalNotes, 
+            ClientNote = order.ClientNote        
         };
-        modalTitle = "Edytuj zlecenie";
+        modalTitle = "Edycja Zlecenia #" + order.Id;
         isEditing = true;
         showModal = true;
     }
 
-    private void CloseModal()
-    {
-        showModal = false;
-        // Poprawka CS8625: Zamiast 'null', tworzymy nowy pusty obiekt.
-        currentOrder = new Order();
-    }
+    private void CloseModal() => showModal = false;
 
     private async Task SaveOrder()
     {
         if (isEditing)
-        {
             await _orderService.UpdateOrderAsync(currentOrder);
-        }
         else
-        {
             await _orderService.AddOrderAsync(currentOrder);
-        }
 
-        await LoadOrders();
         showModal = false;
+        await SearchData();
     }
 
     private async Task DeleteOrder(int id)
     {
-        await _orderService.DeleteOrderAsync(id);
-        await LoadOrders();
+        bool confirmed = await _js.InvokeAsync<bool>("confirm", "Czy na pewno usunąć to zlecenie?");
+        if (confirmed)
+        {
+            await _orderService.DeleteOrderAsync(id);
+            await SearchData();
+        }
     }
+
+    private async Task ExportToCsv()
+    {
+        var fileBytes = await _orderService.ExportOrdersToCsvAsync();
+        using var stream = new MemoryStream(fileBytes);
+        using var streamRef = new DotNetStreamReference(stream);
+        await _js.InvokeVoidAsync("downloadFileFromStream", "zlecenia_backup.csv", streamRef);
+    }
+
+    private string GetBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Oczekujące => "bg-warning text-dark",
+        OrderStatus.WTrakcie => "bg-info text-dark",
+        OrderStatus.Zakończone => "bg-success",
+        OrderStatus.Anulowane => "bg-danger",
+        _ => "bg-secondary"
+    };
 }

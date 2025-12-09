@@ -7,13 +7,16 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var cultureInfo = new System.Globalization.CultureInfo("pl-PL");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// --- POPRAWNA KONFIGURACJA IDENTITY DLA BLAZOR + RAZOR PAGES ---
-// (Ten blok zastępuje stary AddDefaultIdentity)
+
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
@@ -33,18 +36,15 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
     .AddIdentityCookies();
-// --- KONIEC BLOKU IDENTITY ---
-
-// --- DODAJEMY OBSŁUGĘ RAZOR PAGES ---
-// (Niezbędne do stron .cshtml w /Areas/Identity/)
 builder.Services.AddRazorPages();
 
-// --- Usługi Aplikacji ---
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ServiceService>();
+builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
@@ -61,10 +61,9 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAntiforgery(); // Poprawna kolejność
+app.UseAntiforgery();
 
-// --- MAPUJEMY RAZOR PAGES ---
-// (Niezbędne do stron .cshtml w /Areas/Identity/)
+
 app.MapRazorPages();
 
 // Mapujemy tylko komponenty Blazor
@@ -76,6 +75,8 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     await SeedRolesAndAdmin.InitializeAsync(services);
+
+    //await CleaningApp.Data.FakeDataSeeder.InitializeAsync(services);
 }
 
 app.Run();

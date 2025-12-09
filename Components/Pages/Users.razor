@@ -1,0 +1,116 @@
+﻿@page "/users"
+@using CleaningApp.Data.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject UserService _userService
+@inject IJSRuntime _js
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <h2 class="mb-4">👥 Zarządzanie Użytkownikami</h2>
+
+    @if (users == null)
+    {
+        <div class="spinner-border text-primary"></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover shadow-sm bg-white rounded align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Imię i Nazwisko</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Zarządzanie Rolą</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td class="fw-bold">@user.FullName</td>
+                            <td>@user.Email</td>
+                            <td>
+                                @if (user.IsAdmin)
+                                {
+                                    <span class="badge bg-danger me-1">Admin</span>
+                                }
+                                @if (user.IsEmployee)
+                                {
+                                    <span class="badge bg-success me-1">Pracownik</span>
+                                }
+                                @if (!user.IsAdmin && !user.IsEmployee)
+                                {
+                                    <span class="badge bg-secondary">Klient</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!user.IsAdmin) 
+                                {
+                                    @if (user.IsEmployee)
+                                    {
+                                        <button class="btn btn-outline-warning btn-sm" @onclick="() => ToggleRole(user.Id)">
+                                            📉 Zabierz rolę
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-success btn-sm" @onclick="() => ToggleRole(user.Id)">
+                                            📈 Pracownik
+                                        </button>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Główny Admin</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!user.IsAdmin) 
+                                {
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteUser(user)">
+                                        🗑️ Usuń konto
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserViewModel> users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await _userService.GetAllUsersAsync();
+    }
+
+    private async Task ToggleRole(string userId)
+    {
+        await _userService.ToggleEmployeeRoleAsync(userId);
+        await LoadUsers();
+    }
+
+    private async Task DeleteUser(UserViewModel user)
+    {
+        // Zabezpieczenie
+        bool confirmed = await _js.InvokeAsync<bool>("confirm", $"Czy na pewno chcesz usunąć użytkownika {user.FullName} ({user.Email})? TEJ OPERACJI NIE MOŻNA COFNĄĆ.");
+
+        if (confirmed)
+        {
+            await _userService.DeleteUserAsync(user.Id);
+            await LoadUsers(); // Odśwież listę po usunięciu
+        }
+    }
+}

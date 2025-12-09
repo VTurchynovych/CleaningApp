@@ -1,0 +1,40 @@
+ string adminFullName = "Vladyslav Turchynovych";
+ string adminEmail = "admin@cleaningapp.pl";
+ string adminPassword = "Admin123!";
+ string adminPhoneNumber = "+48 792 679 729";
+
+ admin@cleaningapp.pl
+Admin123!
+
+ worker111@cleaningapp.pl
+Worker123!
+
+worker222@cleaningapp.pl 
+Worker1234!
+
+ worker333@cleaningapp.pl
+Worker12345!
+
+ Worker444@cleaningapp.pl
+
+
+ client111@cleaningapp.pl
+Client123!
+
+ client1112@cleaningapp.pl
+Client1231!
+
+ client1113@cleaningapp.pl
+Client1232!
+
+ client1114@cleaningapp.pl
+Client1233!
+
+ client1115@cleaningapp.pl
+Client1234!
+
+Client1116@cleaningapp.pl
+Client1116@cleaningapp.pl
+
+Client1117@cleaningapp.pl
+Client1118@cleaningapp.pl

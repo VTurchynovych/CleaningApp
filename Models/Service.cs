@@ -14,5 +14,6 @@ namespace CleaningApp.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal? DefaultPrice { get; set; }
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
+        public string? ImageUrl { get; set; }
     }
 }

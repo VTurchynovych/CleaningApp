@@ -33,5 +33,17 @@ namespace CleaningApp.Models
 
         [Required]
         public OrderStatus Status { get; set; }
+
+        [Range(1, 5)]
+        public int? Rating { get; set; } 
+
+        [MaxLength(500)]
+        public string? ClientComment { get; set; } // Opis oceny od klienta
+
+        [MaxLength(500)]
+        public string? ClientNote { get; set; } // Uwagi od klienta
+
+        [MaxLength(1000)]
+        public string? InternalNotes { get; set; } // Notatki wewnętrzne dla pracowników
     }
 }

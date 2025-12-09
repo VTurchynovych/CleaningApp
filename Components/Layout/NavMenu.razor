@@ -1,37 +1,69 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">CleaningApp</a>
+        <a class="navbar-brand" href="">
+            <i class="bi bi-stars text-warning"></i> CleaningApp
+        </a>
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable">
     <nav class="flex-column">
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Strona Główna
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="client-services">
+                <span class="bi bi-grid-fill" aria-hidden="true"></span> Oferta Usług
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+        <AuthorizeView Roles="Admin">
+            <div class="sidebar-heading mt-3 mb-1 px-3 text-uppercase small text-white-50 fw-bold">Zarządzanie</div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/orders">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Zlecenia
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin-dashboard">
+                    <span class="bi bi-bar-chart-fill" aria-hidden="true"></span> Pulpit
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="orders">
+                    <span class="bi bi-list-check" aria-hidden="true"></span> Zlecenia
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="services">
+                    <span class="bi bi-tags-fill" aria-hidden="true"></span> Usługi
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="users">
+                    <span class="bi bi-people-fill" aria-hidden="true"></span> Użytkownicy
+                </NavLink>
+            </div>
+        </AuthorizeView>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/services">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Serwisy
-            </NavLink>
-        </div>
+        <AuthorizeView Roles="Employee">
+            <div class="sidebar-heading mt-3 mb-1 px-3 text-uppercase small text-white-50 fw-bold">Praca</div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="worker-dashboard">
+                    <span class="bi bi-tools" aria-hidden="true"></span> Moje Zadania
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="User">
+            <div class="sidebar-heading mt-3 mb-1 px-3 text-uppercase small text-white-50 fw-bold">Strefa Klienta</div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="client-dashboard">
+                    <span class="bi bi-person-circle" aria-hidden="true"></span> Panel Klienta
+                </NavLink>
+            </div>
+        </AuthorizeView>
 
     </nav>
 </div>
-

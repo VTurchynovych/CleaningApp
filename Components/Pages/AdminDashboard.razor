@@ -1,0 +1,212 @@
+﻿@page "/admin-dashboard"
+@using CleaningApp.Models
+@using CleaningApp.Data.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject OrderService _orderService
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Pulpit Administratora</h2>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-light text-dark border px-3 py-2">
+                📅 @DateTime.Now.ToString("dd MMMM yyyy")
+            </span>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 40vh;">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-body position-relative">
+                        <div class="display-5 fw-bold text-warning">@stats.PendingOrders</div>
+                        <div class="fw-bold text-uppercase small text-muted">Oczekujące</div>
+                        <i class="bi bi-clock-history position-absolute top-0 end-0 m-3 fs-1 text-warning opacity-25"></i>
+                    </div>
+                    <div class="card-footer bg-warning bg-opacity-10 border-0 py-2">
+                        <small class="text-warning fw-bold">Wymagają działania</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-body position-relative">
+                        <div class="display-5 fw-bold text-success">@stats.CompletedOrders</div>
+                        <div class="fw-bold text-uppercase small text-muted">Zakończone</div>
+                        <i class="bi bi-check-circle-fill position-absolute top-0 end-0 m-3 fs-1 text-success opacity-25"></i>
+                    </div>
+                    <div class="card-footer bg-success bg-opacity-10 border-0 py-2">
+                        <small class="text-success fw-bold">Zadowoleni klienci</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-body position-relative">
+                        <div class="display-6 fw-bold text-primary">@stats.TotalRevenue.ToString("C0")</div>
+                        <div class="fw-bold text-uppercase small text-muted">Przychód</div>
+                        <i class="bi bi-currency-exchange position-absolute top-0 end-0 m-3 fs-1 text-primary opacity-25"></i>
+                    </div>
+                    <div class="card-footer bg-primary bg-opacity-10 border-0 py-2">
+                        <small class="text-primary fw-bold">Szacowany zysk</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-body position-relative">
+                        <div class="display-5 fw-bold text-info">@stats.TotalClients</div>
+                        <div class="fw-bold text-uppercase small text-muted">Baza Klientów</div>
+                        <i class="bi bi-people-fill position-absolute top-0 end-0 m-3 fs-1 text-info opacity-25"></i>
+                    </div>
+                    <div class="card-footer bg-info bg-opacity-10 border-0 py-2">
+                        <small class="text-info fw-bold">Aktywni użytkownicy</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white fw-bold py-3 border-bottom-0">
+                        📊 Status Realizacji
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var total = allOrders.Count;
+                            if (total == 0) total = 1; 
+
+                            var pending = allOrders.Count(o => o.Status == OrderStatus.Oczekujące);
+                            var progress = allOrders.Count(o => o.Status == OrderStatus.WTrakcie);
+                            var completed = allOrders.Count(o => o.Status == OrderStatus.Zakończone);
+                            var cancelled = allOrders.Count(o => o.Status == OrderStatus.Anulowane);
+                        }
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-bold text-warning small">Oczekujące</span>
+                                <span class="text-muted small">@pending (@((pending * 100) / total)%)</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: @((pending * 100) / total)%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-bold text-info small">W Trakcie</span>
+                                <span class="text-muted small">@progress (@((progress * 100) / total)%)</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: @((progress * 100) / total)%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-bold text-success small">Zakończone</span>
+                                <span class="text-muted small">@completed (@((completed * 100) / total)%)</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: @((completed * 100) / total)%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-bold text-danger small">Anulowane</span>
+                                <span class="text-muted small">@cancelled (@((cancelled * 100) / total)%)</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: @((cancelled * 100) / total)%"></div>
+                            </div>
+                        </div>
+
+                        <hr class="mt-4 mb-4" />
+
+                        <div class="d-grid">
+                            <a href="orders" class="btn btn-outline-primary btn-sm">Przejdź do pełnej listy</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white fw-bold py-3 border-bottom-0 d-flex justify-content-between align-items-center">
+                        <span>📋 Ostatnie Zlecenia</span>
+                        <small class="text-muted">Podgląd na żywo</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr class="text-muted small text-uppercase">
+                                    <th class="ps-4">Usługa</th>
+                                    <th>Klient</th>
+                                    <th>Data</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in allOrders.OrderByDescending(o => o.Id).Take(5))
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-dark">@order.Service?.Name</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <span class="small fw-bold">@order.Client?.FullName?.FirstOrDefault()</span>
+                                                </div>
+                                                <small>@order.Client?.FullName</small>
+                                            </div>
+                                        </td>
+                                        <td class="text-muted small">@order.OrderDate.ToString("dd.MM.yyyy")</td>
+                                        <td><span class="badge @GetBadgeClass(order.Status)">@order.Status</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private OrderStats stats;
+    private List<Order> allOrders;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = await _orderService.GetStatisticsAsync();
+        allOrders = await _orderService.GetOrdersAsync();
+        isLoading = false;
+    }
+
+    private string GetBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Oczekujące => "bg-warning text-dark",
+        OrderStatus.WTrakcie => "bg-info text-dark",
+        OrderStatus.Zakończone => "bg-success",
+        OrderStatus.Anulowane => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

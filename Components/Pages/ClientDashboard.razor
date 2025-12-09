@@ -1,0 +1,306 @@
+﻿@page "/client-dashboard"
+@using CleaningApp.Models
+@using CleaningApp.Data.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@attribute [Authorize(Roles = "User, Admin")]
+@inject OrderService _orderService
+@inject ServiceService _serviceService
+@inject AuthenticationStateProvider _authStateProvider
+@inject NavigationManager _nav
+@inject UserManager<ApplicationUser> _userManager
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h2 class="fw-bold">👋 Witaj, @currentUserName</h2>
+            <p class="text-muted">Zarządzaj swoim sprzątaniem w jednym miejscu.</p>
+        </div>
+        <button class="btn btn-lg btn-primary shadow rounded-pill px-4" @onclick="OpenNewOrderModal">
+            Zamów sprzątanie
+        </button>
+    </div>
+
+    <ul class="nav nav-pills mb-5 gap-3 justify-content-center justify-content-md-start">
+        <li class="nav-item">
+            <button class="nav-link bg-primary text-white shadow fw-bold px-4 py-3 @(!showHistory ? "active" : "")"
+                    @onclick="() => showHistory = false">
+                <i class="bi bi-calendar-week-fill me-2"></i> Aktywne zlecenia
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link bg-primary text-white shadow fw-bold px-4 py-3 @(showHistory ? "active" : "")"
+                    @onclick="() => showHistory = true">
+                <i class="bi bi-check-circle-fill me-2"></i> Historia i Oceny
+            </button>
+        </li>
+    </ul>
+
+    @if (myOrders == null)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>
+    }
+    else if (!FilteredOrders.Any())
+    {
+        <div class="alert alert-light border text-center py-5 shadow-sm rounded-3">
+            <h4>Nie masz żadnych zleceń</h4>
+            <button class="btn btn-outline-primary mt-2" @onclick="OpenNewOrderModal">Złóż pierwsze zamówienie</button>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var order in FilteredOrders)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm border-0 hover-effect">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title fw-bold text-primary">@order.Service?.Name</h5>
+                                <span class="badge @GetBadgeClass(order.Status)">@order.Status</span>
+                            </div>
+
+                            <p class="mb-1"><i class="bi bi-calendar-event me-2 text-muted"></i> <strong>@order.OrderDate.ToString("dd.MM.yyyy")</strong></p>
+                            <p class="mb-2 text-muted"><i class="bi bi-geo-alt me-2"></i> @order.Address</p>
+
+                            @if (!string.IsNullOrEmpty(order.ClientNote))
+                            {
+                                <div class="alert alert-light border p-2 mb-3 small text-muted">
+                                    <i class="bi bi-pencil me-1"></i> <em>"@order.ClientNote"</em>
+                                </div>
+                            }
+
+                            @if (!showHistory && order.Worker != null)
+                            {
+                                <hr class="my-2" />
+                                <div class="d-flex align-items-center mt-3 bg-light p-2 rounded">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">WYKONAWCA:</small>
+                                        <span class="fw-bold text-dark">@order.Worker.FullName</span>
+                                        @if (!string.IsNullOrEmpty(order.Worker.PhoneNumber))
+                                        {
+                                            <br />
+                                            <a href="tel:@order.Worker.PhoneNumber" class="text-decoration-none small text-primary fw-bold">
+                                                <i class="bi bi-telephone-fill me-1"></i> @order.Worker.PhoneNumber
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            @if (showHistory)
+                            {
+                                <hr />
+                                @if (order.Rating == null)
+                                {
+                                    <button class="btn btn-outline-warning w-100" @onclick="() => OpenRateModal(order)">
+                                        ⭐ Oceń wykonanie
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="text-center">
+                                        <div class="text-warning fs-5">
+                                            @for (int i = 0; i < order.Rating; i++)
+                                            {
+                                                <span>★</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted fst-italic">"@order.ClientComment"</small>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@*NOWE ZLECENIE*@
+@if (isOrderModalOpen)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Nowe Zlecenie</h5>
+                    <button type="button" class="btn-close" @onclick="() => isOrderModalOpen = false"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="newOrder" OnValidSubmit="SaveNewOrder">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Wybierz usługę</label>
+                            <InputSelect class="form-select" @bind-Value="newOrder.ServiceId">
+                                <option value="0">-- Wybierz --</option>
+                                @foreach (var s in servicesList)
+                                {
+                                    <option value="@s.Id">@s.Name (@(s.DefaultPrice?.ToString("0.00") ?? "0.00") zł)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Adres realizacji</label>
+                            <InputText class="form-control" @bind-Value="newOrder.Address" placeholder="Np. ul. Długa 5/12" />
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Data</label>
+                                <InputDate class="form-control" @bind-Value="newOrder.OrderDate" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Uwagi dla pracownika (Opcjonalne)</label>
+                            <InputTextArea class="form-control" @bind-Value="newOrder.ClientNote" rows="2"
+                                           placeholder="Np. Kod do domofonu 1234, proszę uważać na psa." />
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn btn-secondary" @onclick="() => isOrderModalOpen = false">Anuluj</button>
+                            <button type="submit" class="btn btn-primary px-4">Złóż zamówienie</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@*OCENIANIE*@
+@if (isRateModalOpen)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Oceń usługę</h5>
+                    <button type="button" class="btn-close" @onclick="() => isRateModalOpen = false"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <p>Jak oceniasz usługę z dnia @orderToRate.OrderDate.ToString("dd.MM")?</p>
+
+                    <div class="fs-1 mb-3 cursor-pointer">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            var starValue = i;
+                            <span class="@(ratingValue >= starValue ? "text-warning" : "text-muted")"
+                                  @onclick="() => ratingValue = starValue" style="cursor: pointer; transition: color 0.2s;">★</span>
+                        }
+                    </div>
+
+                    <textarea class="form-control mb-3" @bind="commentValue" placeholder="Napisz krótki komentarz..."></textarea>
+
+                    <button class="btn btn-success w-100" @onclick="SubmitRating">Wyślij opinię</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Order> myOrders;
+    private List<Service> servicesList;
+
+    private string currentUserName;
+    private string currentUserEmail;
+    private string currentUserId;
+    private bool showHistory = false;
+
+    private bool isOrderModalOpen = false;
+    private Order newOrder = new Order();
+
+    private bool isRateModalOpen = false;
+    private Order orderToRate;
+    private int ratingValue = 5;
+    private string commentValue = "";
+
+    private IEnumerable<Order> FilteredOrders => showHistory
+        ? myOrders.Where(o => o.Status == OrderStatus.Zakończone || o.Status == OrderStatus.Anulowane)
+        : myOrders.Where(o => o.Status != OrderStatus.Zakończone && o.Status != OrderStatus.Anulowane);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await _authStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            currentUserEmail = user.Identity.Name;
+            currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var appUser = await _userManager.FindByIdAsync(currentUserId);
+            if (appUser != null && !string.IsNullOrEmpty(appUser.FullName))
+            {
+                currentUserName = appUser.FullName.Split(' ')[0];
+            }
+            else
+            {
+                currentUserName = currentUserEmail;
+            }
+
+            await LoadData(currentUserEmail);
+            servicesList = await _serviceService.GetServicesAsync();
+        }
+        else
+        {
+            _nav.NavigateTo("/Account/Login");
+        }
+    }
+
+    private async Task LoadData(string email)
+    {
+        myOrders = await _orderService.GetUserOrdersAsync(email);
+    }
+
+    private void OpenNewOrderModal()
+    {
+        newOrder = new Order { OrderDate = DateTime.Today.AddDays(1), ClientId = currentUserId };
+        isOrderModalOpen = true;
+    }
+
+    private async Task SaveNewOrder()
+    {
+        newOrder.ClientId = currentUserId;
+        newOrder.Status = OrderStatus.Oczekujące;
+
+        await _orderService.AddOrderAsync(newOrder);
+        isOrderModalOpen = false;
+
+        await LoadData(currentUserEmail);
+    }
+
+    private void OpenRateModal(Order order)
+    {
+        orderToRate = order;
+        ratingValue = 5;
+        commentValue = "";
+        isRateModalOpen = true;
+    }
+
+    private async Task SubmitRating()
+    {
+        await _orderService.RateOrderAsync(orderToRate.Id, ratingValue, commentValue);
+        isRateModalOpen = false;
+        await LoadData(currentUserEmail);
+    }
+
+    private string GetBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Oczekujące => "bg-warning text-dark",
+        OrderStatus.WTrakcie => "bg-info text-dark",
+        OrderStatus.Zakończone => "bg-success",
+        OrderStatus.Anulowane => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

@@ -1,0 +1,198 @@
+﻿@page "/worker-dashboard"
+@using CleaningApp.Models
+@using CleaningApp.Data.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Employee, Admin")]
+@inject OrderService _orderService
+@inject AuthenticationStateProvider _authStateProvider
+@inject NavigationManager _nav
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">👷‍♂️ Panel Pracownika</h2>
+        <span class="text-muted">Witaj w pracy!</span>
+    </div>
+
+    <ul class="nav nav-pills mb-4 gap-2">
+        <li class="nav-item">
+            <button class="nav-link bg-primary text-white shadow fw-bold px-4 py-3 @(!showHistory ? "active" : "")"
+                    @onclick="() => showHistory = false">
+                <i class="bi bi-calendar-week-fill me-2"></i> Do wykonania
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link bg-primary text-white shadow fw-bold px-4 py-3 @(showHistory ? "active" : "")"
+                    @onclick="() => showHistory = true">
+                <i class="bi bi-check-circle-fill me-2"></i> Archiwum
+            </button>
+        </li>
+    </ul>
+
+    @if (myTasks == null)
+    {
+        <div class="spinner-border text-primary"></div>
+    }
+    else if (!FilteredTasks.Any())
+    {
+        <div class="alert alert-success text-center py-5 shadow-sm">
+            @if (!showHistory)
+            {
+                <h4>Brak zadań na dziś!</h4>
+                <p>Wszystko zrobione. Odpocznij.</p>
+            }
+            else
+            {
+                <h4>Puste archiwum</h4>
+                <p>Nie masz jeszcze zakończonych zleceń.</p>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var order in FilteredTasks)
+            {
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-primary">#@order.Id</span>
+                            <span class="badge @GetBadgeClass(order.Status)">@order.Status</span>
+                        </div>
+
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">@order.Service?.Name</h5>
+
+                            <p class="card-text mb-2">
+                                📅 <strong>Data:</strong> @order.OrderDate.ToString("dd.MM.yyyy")
+                            </p>
+
+                            <p class="card-text mb-2">
+                                📍 <strong>Adres:</strong>
+                                <a href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(order.Address)?q=@order.Address" target="_blank" class="text-decoration-none fw-bold">
+                                    @order.Address <i class="bi bi-box-arrow-up-right small"></i>
+                                </a>
+                            </p>
+
+                            <div class="bg-light p-2 rounded mb-3 mt-3">
+                                <small class="text-muted d-block mb-1">DANE KLIENTA:</small>
+                                <strong>@(order.Client?.FullName ?? "Nieznany")</strong>
+                                @if (!string.IsNullOrEmpty(order.Client?.PhoneNumber))
+                                {
+                                    <div class="mt-1">
+                                       <p class="card-text mb-2">
+                                            @order.Client.PhoneNumber
+                                        </p>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(order.InternalNotes))
+                            {
+                                <div class="alert alert-warning d-flex align-items-start p-2 mb-2">
+                                    <i class="bi bi-shield-lock-fill me-2 fs-5"></i>
+                                    <div class="small">
+                                        <strong>Info biurowe:</strong> @order.InternalNotes
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(order.ClientNote))
+                            {
+                                <div class="alert alert-info d-flex align-items-start p-2 mb-3">
+                                    <i class="bi bi-chat-quote-fill me-2 fs-5"></i>
+                                    <div class="small">
+                                        <strong>Uwagi Klienta:</strong> @order.ClientNote
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!showHistory)
+                            {
+                                <hr />
+                                <div class="d-flex gap-2">
+                                    @if (order.Status == OrderStatus.Oczekujące)
+                                    {
+                                        <button class="btn btn-warning w-100 fw-bold shadow-sm" @onclick="() => ChangeStatus(order, OrderStatus.WTrakcie)">
+                                            Rozpocznij
+                                        </button>
+                                    }
+                                    else if (order.Status == OrderStatus.WTrakcie)
+                                    {
+                                        <button class="btn btn-success w-100 fw-bold shadow-sm" @onclick="() => ChangeStatus(order, OrderStatus.Zakończone)">
+                                            ✅ Zakończ Pracę
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                @if (order.Rating != null)
+                                {
+                                    <hr />
+                                    <div class="text-center">
+                                        <div class="text-warning fs-5">
+                                            @for (int i = 0; i < order.Rating; i++)
+                                            {
+                                                <span>★</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted fst-italic">"@order.ClientComment"</small>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Order> myTasks;
+    private string currentUserId;
+    private bool showHistory = false; 
+
+    // FILTR LOGICZNY
+    private IEnumerable<Order> FilteredTasks => showHistory
+        ? myTasks.Where(o => o.Status == OrderStatus.Zakończone || o.Status == OrderStatus.Anulowane) // Archiwum
+        : myTasks.Where(o => o.Status != OrderStatus.Zakończone && o.Status != OrderStatus.Anulowane); // Aktywne
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await _authStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await LoadTasks();
+        }
+        else
+        {
+            _nav.NavigateTo("/Account/Login");
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        myTasks = await _orderService.GetWorkerOrdersAsync(currentUserId);
+    }
+
+    private async Task ChangeStatus(Order order, OrderStatus newStatus)
+    {
+        await _orderService.UpdateOrderStatusAsync(order.Id, newStatus);
+        await LoadTasks(); // Odśwież listę po zmianie
+    }
+
+    private string GetBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Oczekujące => "bg-warning text-dark",
+        OrderStatus.WTrakcie => "bg-info text-dark",
+        OrderStatus.Zakończone => "bg-success",
+        OrderStatus.Anulowane => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
