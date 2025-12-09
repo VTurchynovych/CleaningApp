@@ -27,12 +27,25 @@
                     <div class="card h-100 shadow-sm border-0">
                         <div class="position-relative" style="height: 200px; overflow: hidden;">
                             <img src="@(string.IsNullOrEmpty(service.ImageUrl) ? "/img/default.jpg" : service.ImageUrl)"
-                                 class="card-img-top h-100 w-100" style="object-fit: cover;" alt="@service.Name">
+                                 class="card-img-top h-100 w-100" style="object-fit: cover;"
+                                 onerror="this.src='https://via.placeholder.com/400x250?text=Usluga'" alt="@service.Name">
                         </div>
-                        <div class="card-body text-center">
+                        <div class="card-body text-center d-flex flex-column">
                             <h5 class="card-title fw-bold">@service.Name</h5>
                             <h6 class="text-primary fw-bold mb-3">@service.DefaultPrice?.ToString("C")</h6>
-                            <div class="d-flex justify-content-center gap-2">
+
+                            <div class="small text-muted mb-3 flex-grow-1">
+                                @if (!string.IsNullOrEmpty(service.EstimatedTime))
+                                {
+                                    <div>⏱️ @service.EstimatedTime</div>
+                                }
+                                @if (!string.IsNullOrEmpty(service.AreaRange))
+                                {
+                                    <div>📏 @service.AreaRange</div>
+                                }
+                            </div>
+
+                            <div class="d-flex justify-content-center gap-2 mt-auto">
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => EditService(service)">Edytuj</button>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteService(service.Id)">Usuń</button>
                             </div>
@@ -48,7 +61,7 @@
 {
     <div class="modal-backdrop fade show"></div>
     <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">@modalTitle</h5>
@@ -58,25 +71,47 @@
                     <EditForm Model="currentService" OnValidSubmit="SaveService">
                         <DataAnnotationsValidator />
 
-                        <div class="mb-3">
-                            <label>Nazwa usługi</label>
-                            <InputText class="form-control" @bind-Value="currentService.Name" />
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Nazwa usługi</label>
+                                <InputText class="form-control" @bind-Value="currentService.Name" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Cena domyślna (zł)</label>
+                                <InputNumber class="form-control" @bind-Value="currentService.DefaultPrice" />
+                            </div>
+                        </div>
+
+                        <div class="row bg-light p-3 rounded mb-3 border">
+                            <h6 class="fw-bold text-muted mb-3">Szczegóły techniczne</h6>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Czas trwania (np. "ok. 2h")</label>
+                                <InputText class="form-control" @bind-Value="currentService.EstimatedTime" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Metraż / Zakres (np. "do 50 m²")</label>
+                                <InputText class="form-control" @bind-Value="currentService.AreaRange" />
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Co wchodzi w skład? (np. "Odkurzanie, mycie okien")</label>
+                                <InputText class="form-control" @bind-Value="currentService.Includes" />
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <label>Cena domyślna (zł)</label>
-                            <InputNumber class="form-control" @bind-Value="currentService.DefaultPrice" />
+                            <label class="form-label">Opis marketingowy</label>
+                            <InputTextArea class="form-control" @bind-Value="currentService.Description" rows="3" />
                         </div>
 
                         <div class="mb-3">
-                            <label>Zdjęcie usługi</label>
+                            <label class="form-label">Zdjęcie usługi</label>
                             <InputFile OnChange="HandleFileSelected" class="form-control" accept=".jpg,.jpeg,.png" />
                             <div class="form-text text-muted">Wybierz plik z komputera (max 5MB).</div>
 
                             @if (!string.IsNullOrEmpty(currentService.ImageUrl))
                             {
                                 <div class="mt-2">
-                                    <small>Obecne:</small>
+                                    <small>Obecne zdjęcie:</small>
                                     <img src="@currentService.ImageUrl" width="100" class="rounded border ms-2" />
                                 </div>
                             }
@@ -121,9 +156,8 @@
         if (uploadedFile != null)
         {
             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(uploadedFile.Name)}";
-
             var folderPath = Path.Combine(_env.WebRootPath, "img", "services");
-            Directory.CreateDirectory(folderPath); // Upewnij się, że folder istnieje
+            Directory.CreateDirectory(folderPath);
 
             var fullPath = Path.Combine(folderPath, fileName);
 
@@ -143,7 +177,6 @@
         await LoadServices();
     }
 
-    //STANDARDOWE METODY
     private void OpenAddModal()
     {
         currentService = new Service();
@@ -160,7 +193,11 @@
             Id = service.Id,
             Name = service.Name,
             DefaultPrice = service.DefaultPrice,
-            ImageUrl = service.ImageUrl
+            ImageUrl = service.ImageUrl,
+            Description = service.Description,
+            EstimatedTime = service.EstimatedTime,
+            AreaRange = service.AreaRange,
+            Includes = service.Includes
         };
         modalTitle = "Edytuj usługę";
         isEditing = true;

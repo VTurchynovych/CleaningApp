@@ -28,3 +28,12 @@ protected override async Task OnInitializedAsync()
     orders = await _context.Orders.ToListAsync();
 }
 
+Podzia³ ról (RBAC):jasny podzia³ na Admina, Pracownika i Klienta. To fundament bezpiecznej aplikacji.
+
+Design (UI/UX): Styl "Indygo", zaokr¹glenia, cienie i spójnoœæ kolorystyczna.
+
+Responsywnoœæ: Po naszej walce z CSS, menu dzia³a idealnie na telefonach i komputerach. To kluczowe, bo pracownicy bêd¹ u¿ywaæ tego w terenie na smartfonach.
+
+Logika Biznesowa: Masz pe³ny obieg zlecenia: Zamówienie (Klient) -> Przypisanie (Admin) -> Realizacja (Pracownik) -> Ocena (Klient).
+
+Dashboardy: Ka¿da rola widzi to, co powinna. Paski postêpu u Admina s¹ czytelne i lepsze ni¿ niedzia³aj¹ce wykresy.

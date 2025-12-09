@@ -4,12 +4,15 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using System.Security.Claims
+@using System.IO
 @attribute [Authorize(Roles = "User, Admin")]
 @inject OrderService _orderService
 @inject ServiceService _serviceService
 @inject AuthenticationStateProvider _authStateProvider
 @inject NavigationManager _nav
 @inject UserManager<ApplicationUser> _userManager
+@inject PdfService _pdfService
+@inject IJSRuntime _js
 @rendermode InteractiveServer
 
 <div class="container mt-4">
@@ -23,6 +26,7 @@
         </button>
     </div>
 
+    @* --- ZAKŁADKI --- *@
     <ul class="nav nav-pills mb-5 gap-3 justify-content-center justify-content-md-start">
         <li class="nav-item">
             <button class="nav-link bg-primary text-white shadow fw-bold px-4 py-3 @(!showHistory ? "active" : "")"
@@ -38,6 +42,7 @@
         </li>
     </ul>
 
+    @* --- LISTA ZLECEŃ --- *@
     @if (myOrders == null)
     {
         <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>
@@ -96,24 +101,33 @@
                             @if (showHistory)
                             {
                                 <hr />
-                                @if (order.Rating == null)
-                                {
-                                    <button class="btn btn-outline-warning w-100" @onclick="() => OpenRateModal(order)">
-                                        ⭐ Oceń wykonanie
-                                    </button>
-                                }
-                                else
-                                {
-                                    <div class="text-center">
-                                        <div class="text-warning fs-5">
-                                            @for (int i = 0; i < order.Rating; i++)
-                                            {
-                                                <span>★</span>
-                                            }
+                                <div class="d-flex flex-column gap-2">
+                                    @if (order.Status == OrderStatus.Zakończone)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger w-100 mb-1" @onclick="() => DownloadPdf(order)">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> Pobierz Potwierdzenie PDF
+                                        </button>
+                                    }
+
+                                    @if (order.Rating == null)
+                                    {
+                                        <button class="btn btn-outline-warning w-100" @onclick="() => OpenRateModal(order)">
+                                            ⭐ Oceń wykonanie
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center">
+                                            <div class="text-warning fs-5">
+                                                @for (int i = 0; i < order.Rating; i++)
+                                                {
+                                                    <span>★</span>
+                                                }
+                                            </div>
+                                            <small class="text-muted fst-italic">"@order.ClientComment"</small>
                                         </div>
-                                        <small class="text-muted fst-italic">"@order.ClientComment"</small>
-                                    </div>
-                                }
+                                    }
+                                </div>
                             }
                         </div>
                     </div>
@@ -123,51 +137,112 @@
     }
 </div>
 
-@*NOWE ZLECENIE*@
+@* --- NOWY MODAL MULTI-ORDER (BEZ TOASTÓW) --- *@
 @if (isOrderModalOpen)
 {
     <div class="modal-backdrop fade show"></div>
     <div class="modal show d-block" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Nowe Zlecenie</h5>
+                    <h5 class="modal-title fw-bold">Nowe Zamówienie</h5>
                     <button type="button" class="btn-close" @onclick="() => isOrderModalOpen = false"></button>
                 </div>
                 <div class="modal-body">
-                    <EditForm Model="newOrder" OnValidSubmit="SaveNewOrder">
+                    <EditForm Model="tempOrderModel" OnValidSubmit="SaveNewOrders">
                         <DataAnnotationsValidator />
 
-                        <div class="mb-3">
-                            <label class="form-label">Wybierz usługę</label>
-                            <InputSelect class="form-select" @bind-Value="newOrder.ServiceId">
-                                <option value="0">-- Wybierz --</option>
-                                @foreach (var s in servicesList)
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Wybierz usługi <span class="text-danger">*</span></label>
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-7">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" placeholder="Szukaj usługi..."
+                                               @bind="serviceSearchText" @bind:event="oninput" />
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <select class="form-select form-select-sm" @bind="sortOption">
+                                        <option value="name">Nazwa A-Z</option>
+                                        <option value="price_asc">Cena: od najniższej</option>
+                                        <option value="price_desc">Cena: od najwyższej</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="list-group shadow-sm border @(showServiceError ? "border-danger" : "")" style="max-height: 250px; overflow-y: auto;">
+                                @if (!GetFilteredServices().Any())
                                 {
-                                    <option value="@s.Id">@s.Name (@(s.DefaultPrice?.ToString("0.00") ?? "0.00") zł)</option>
+                                    <div class="p-3 text-center text-muted small">Nie znaleziono usług.</div>
                                 }
-                            </InputSelect>
+                                else
+                                {
+                                    @foreach (var s in GetFilteredServices())
+                                    {
+                                        <label class="list-group-item d-flex justify-content-between align-items-center list-group-item-action" style="cursor: pointer;">
+                                            <div class="d-flex align-items-center">
+                                                <input class="form-check-input me-3" type="checkbox"
+                                                       checked="@selectedServiceIds.Contains(s.Id)"
+                                                       @onchange="@(e => ToggleService(s.Id, e.Value))"
+                                                       style="width: 1.2em; height: 1.2em;">
+                                                <div>
+                                                    <span class="fw-bold d-block">@s.Name</span>
+                                                    <small class="text-muted" style="font-size: 0.8rem;">
+                                                        @(s.Description?.Length > 50 ? s.Description.Substring(0, 50) + "..." : s.Description)
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill">@s.DefaultPrice?.ToString("C2")</span>
+                                        </label>
+                                    }
+                                }
+                            </div>
+
+                            @* --- BŁĄD WALIDACJI USŁUG --- *@
+                            @if (showServiceError)
+                            {
+                                <div class="text-danger small mt-1 fw-bold">
+                                    <i class="bi bi-exclamation-circle"></i> Proszę wybrać przynajmniej jedną usługę!
+                                </div>
+                            }
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Adres realizacji</label>
-                            <InputText class="form-control" @bind-Value="newOrder.Address" placeholder="Np. ul. Długa 5/12" />
+
+                        <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm">
+                            <span>Wybrano usług: <strong>@selectedServiceIds.Count</strong></span>
+                            <span class="fw-bold fs-5 text-primary">Razem: @CalculateTotal().ToString("C2")</span>
                         </div>
+
                         <div class="row mb-3">
-                            <div class="col-6">
+                            <div class="col-md-8">
+                                <label class="form-label">Adres realizacji <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="tempOrderModel.Address" placeholder="Ulica, numer domu/mieszkania, miasto" />
+
+                                @* --- BŁĄD WALIDACJI ADRESU --- *@
+                                @if (showAddressError)
+                                {
+                                    <div class="text-danger small mt-1 fw-bold">Proszę wpisać adres realizacji!</div>
+                                }
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label">Data</label>
-                                <InputDate class="form-control" @bind-Value="newOrder.OrderDate" />
+                                <InputDate class="form-control" @bind-Value="tempOrderModel.OrderDate" />
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Uwagi dla pracownika (Opcjonalne)</label>
-                            <InputTextArea class="form-control" @bind-Value="newOrder.ClientNote" rows="2"
+                            <InputTextArea class="form-control" @bind-Value="tempOrderModel.ClientNote" rows="2"
                                            placeholder="Np. Kod do domofonu 1234, proszę uważać na psa." />
                         </div>
 
                         <div class="d-flex justify-content-end gap-2 mt-4">
                             <button type="button" class="btn btn-secondary" @onclick="() => isOrderModalOpen = false">Anuluj</button>
-                            <button type="submit" class="btn btn-primary px-4">Złóż zamówienie</button>
+
+                            <button type="submit" class="btn btn-success px-4 fw-bold">
+                                ✅ Złóż zamówienie
+                            </button>
                         </div>
                     </EditForm>
                 </div>
@@ -176,7 +251,7 @@
     </div>
 }
 
-@*OCENIANIE*@
+@*OCENIANIE MODAL*@
 @if (isRateModalOpen)
 {
     <div class="modal-backdrop fade show"></div>
@@ -189,7 +264,6 @@
                 </div>
                 <div class="modal-body text-center">
                     <p>Jak oceniasz usługę z dnia @orderToRate.OrderDate.ToString("dd.MM")?</p>
-
                     <div class="fs-1 mb-3 cursor-pointer">
                         @for (int i = 1; i <= 5; i++)
                         {
@@ -198,9 +272,7 @@
                                   @onclick="() => ratingValue = starValue" style="cursor: pointer; transition: color 0.2s;">★</span>
                         }
                     </div>
-
                     <textarea class="form-control mb-3" @bind="commentValue" placeholder="Napisz krótki komentarz..."></textarea>
-
                     <button class="btn btn-success w-100" @onclick="SubmitRating">Wyślij opinię</button>
                 </div>
             </div>
@@ -209,17 +281,31 @@
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "serviceId")]
+    public int? ServiceIdUrl { get; set; }
+
     private List<Order> myOrders;
-    private List<Service> servicesList;
+    private List<Service> servicesList = new();
 
     private string currentUserName;
     private string currentUserEmail;
     private string currentUserId;
     private bool showHistory = false;
 
+    // --- ZMIENNE DO MODALA I WALIDACJI ---
     private bool isOrderModalOpen = false;
-    private Order newOrder = new Order();
+    private Order tempOrderModel = new Order();
+    private HashSet<int> selectedServiceIds = new HashSet<int>();
 
+    // Filtrowanie usług
+    private string serviceSearchText = "";
+    private string sortOption = "name";
+
+    // Flagi błędów (zamiast Toastów)
+    private bool showAddressError = false;
+    private bool showServiceError = false;
+
+    // Logika oceniania
     private bool isRateModalOpen = false;
     private Order orderToRate;
     private int ratingValue = 5;
@@ -251,6 +337,12 @@
 
             await LoadData(currentUserEmail);
             servicesList = await _serviceService.GetServicesAsync();
+
+            if (ServiceIdUrl.HasValue)
+            {
+                OpenNewOrderModal();
+                selectedServiceIds.Add(ServiceIdUrl.Value);
+            }
         }
         else
         {
@@ -265,18 +357,94 @@
 
     private void OpenNewOrderModal()
     {
-        newOrder = new Order { OrderDate = DateTime.Today.AddDays(1), ClientId = currentUserId };
+        tempOrderModel = new Order { OrderDate = DateTime.Today.AddDays(1), ClientId = currentUserId };
+        selectedServiceIds.Clear();
+        serviceSearchText = "";
+        sortOption = "name";
+
+        // Resetujemy błędy przy otwarciu
+        showAddressError = false;
+        showServiceError = false;
+
         isOrderModalOpen = true;
     }
 
-    private async Task SaveNewOrder()
+    private IEnumerable<Service> GetFilteredServices()
     {
-        newOrder.ClientId = currentUserId;
-        newOrder.Status = OrderStatus.Oczekujące;
+        var query = servicesList.AsEnumerable();
 
-        await _orderService.AddOrderAsync(newOrder);
+        if (!string.IsNullOrWhiteSpace(serviceSearchText))
+        {
+            query = query.Where(s => s.Name.Contains(serviceSearchText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = sortOption switch
+        {
+            "price_asc" => query.OrderBy(s => s.DefaultPrice),
+            "price_desc" => query.OrderByDescending(s => s.DefaultPrice),
+            _ => query.OrderBy(s => s.Name)
+        };
+
+        return query;
+    }
+
+    private void ToggleService(int serviceId, object checkedValue)
+    {
+        if ((bool)checkedValue)
+            selectedServiceIds.Add(serviceId);
+        else
+            selectedServiceIds.Remove(serviceId);
+
+        // Jeśli użytkownik coś kliknął, chowamy błąd usług
+        if (selectedServiceIds.Any()) showServiceError = false;
+    }
+
+    private decimal CalculateTotal()
+    {
+        decimal total = 0;
+        foreach (var id in selectedServiceIds)
+        {
+            var s = servicesList.FirstOrDefault(x => x.Id == id);
+            if (s != null) total += s.DefaultPrice ?? 0;
+        }
+        return total;
+    }
+
+    private async Task SaveNewOrders()
+    {
+        // 1. Walidacja Adresu
+        if (string.IsNullOrWhiteSpace(tempOrderModel.Address))
+        {
+            showAddressError = true;
+            return;
+        }
+        showAddressError = false;
+
+        // 2. Walidacja Usług (Nowa logika)
+        if (!selectedServiceIds.Any())
+        {
+            showServiceError = true;
+            return;
+        }
+        showServiceError = false;
+
+        // 3. Zapis
+        foreach (var serviceId in selectedServiceIds)
+        {
+            var newOrder = new Order
+            {
+                ClientId = currentUserId,
+                ServiceId = serviceId,
+                Status = OrderStatus.Oczekujące,
+                Address = tempOrderModel.Address,
+                OrderDate = tempOrderModel.OrderDate,
+                ClientNote = tempOrderModel.ClientNote
+            };
+
+            await _orderService.AddOrderAsync(newOrder);
+        }
+
         isOrderModalOpen = false;
-
         await LoadData(currentUserEmail);
     }
 
@@ -293,6 +461,14 @@
         await _orderService.RateOrderAsync(orderToRate.Id, ratingValue, commentValue);
         isRateModalOpen = false;
         await LoadData(currentUserEmail);
+    }
+
+    private async Task DownloadPdf(Order order)
+    {
+        var pdfBytes = _pdfService.GenerateOrderPdf(order);
+        using var stream = new MemoryStream(pdfBytes);
+        using var streamRef = new DotNetStreamReference(stream);
+        await _js.InvokeVoidAsync("downloadFileFromStream", $"Potwierdzenie_Zlecenia_{order.Id}.pdf", streamRef);
     }
 
     private string GetBadgeClass(OrderStatus status) => status switch

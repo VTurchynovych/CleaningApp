@@ -3,8 +3,7 @@
 @using CleaningApp.Data.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject OrderService _orderService
-@rendermode InteractiveServer
-
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 <div class="hero-section">
     <div class="container text-center">
         <h1 class="display-3 fw-bold animate-up">Czystość, która inspiruje</h1>
@@ -14,12 +13,12 @@
             <AuthorizeView>
                 <Authorized>
                     <a href="client-services" class="btn btn-primary rounded-pill px-5 shadow-lg py-3 fw-bold">
-                        📋 Zobacz nasze usługi
+                        Zobacz nasze usługi
                     </a>
                 </Authorized>
                 <NotAuthorized>
                     <a href="Account/Register" class="btn btn-primary rounded-pill px-5 shadow-lg py-3 fw-bold">
-                        📋 Utworz konto i zobacz nasze usługi
+                        Utworz konto i zobacz nasze usługi
                     </a>
                 </NotAuthorized>
             </AuthorizeView>
@@ -64,7 +63,93 @@
     </div>
 </div>
 
-<div class="bg-light py-5 testimonial-section">
+<div class="bg-pattern py-5">
+    <div class="container my-5">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <img src="/img/about-us.jpg" alt="Nasz zespół" class="img-fluid about-img mb-4 mb-md-0"
+                     onerror="this.src='https://via.placeholder.com/600x400?text=Zdjecie+Zespolu'" />
+            </div>
+            <div class="col-md-6 ps-md-5">
+                <h6 class="text-primary fw-bold text-uppercase">O Naszej Firmie</h6>
+                <h2 class="fw-bold mb-4">Tworzymy przestrzeń do życia</h2>
+                <p class="text-muted mb-4">
+                    Jesteśmy zespołem pasjonatów, dla których sprzątanie to nie tylko praca, ale misja.
+                </p>
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Certyfikowani pracownicy</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Ekologiczne środki</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Gwarancja satysfakcji</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-pattern py-5">
+    <section class="contact-section py-5" >
+        <div class="container mt-4 mb-5">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <h6 class="text-primary fw-bold text-uppercase ls-2">Jesteśmy tu dla Ciebie</h6>
+                <h2 class="fw-bold display-5 mb-3">Skontaktuj się z nami</h2>
+                <p class="text-muted lead">Masz pytania? Nasz zespół czeka na Twój kontakt 24/7.</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+
+                <div class="col-md-5 col-lg-4">
+                    <div class="card h-100 border-0 shadow-lg contact-card">
+                        <div class="card-body text-center p-5">
+                            <div class="icon-circle mb-4 mx-auto shadow-sm">
+                                <i class="bi bi-telephone-fill"></i>
+                            </div>
+                            <h4 class="fw-bold mb-4">Zadzwoń do nas</h4>
+                            <div class="d-flex flex-column gap-3 contact-list">
+                                <a href="tel:+48601234567">
+                                    <span class="badge bg-light text-dark border me-2">INFOLINIA</span>
+                                    +48 601 234 567
+                                </a>
+                                <a href="tel:+48502987654">
+                                    <span class="badge bg-light text-dark border me-2">BIURO</span>
+                                    +48 502 987 654
+                                </a>
+                                <a href="tel:+48733555888">
+                                    <span class="badge bg-light text-dark border me-2">PILNE</span>
+                                    +48 733 555 888
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-5 col-lg-4">
+                    <div class="card h-100 border-0 shadow-lg contact-card">
+                        <div class="card-body text-center p-5">
+                            <div class="icon-circle email-icon mb-4 mx-auto shadow-sm">
+                                <i class="bi bi-envelope-fill"></i>
+                            </div>
+                            <h4 class="fw-bold mb-4">Napisz do nas</h4>
+                            <div class="d-flex flex-column gap-3 contact-list">
+                                <a href="mailto:kontakt@cleaningapp.pl">
+                                    <i class="bi bi-send me-2 text-primary"></i> kontakt@cleaningapp.pl
+                                </a>
+                                <a href="mailto:biuro@cleaningapp.pl">
+                                    <i class="bi bi-building me-2 text-primary"></i> biuro@cleaningapp.pl
+                                </a>
+                                <a href="mailto:wsparcie@cleaningapp.pl">
+                                    <i class="bi bi-life-preserver me-2 text-primary"></i> wsparcie@cleaningapp.pl
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="bg-pattern py-5">
     <div class="container">
         <div class="text-center mb-5">
             <h2 class="fw-bold">Co mówią o nas klienci?</h2>
@@ -147,46 +232,18 @@
     </div>
 </div>
 
-
-
-<div class="bg-pattern py-5">
-    <div class="container my-5">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <img src="/img/about-us.jpg" alt="Nasz zespół" class="img-fluid about-img mb-4 mb-md-0"
-                     onerror="this.src='https://via.placeholder.com/600x400?text=Zdjecie+Zespolu'" />
-            </div>
-            <div class="col-md-6 ps-md-5">
-                <h6 class="text-primary fw-bold text-uppercase">O Naszej Firmie</h6>
-                <h2 class="fw-bold mb-4">Tworzymy przestrzeń do życia</h2>
-                <p class="text-muted mb-4">
-                    Jesteśmy zespołem pasjonatów, dla których sprzątanie to nie tylko praca, ale misja.
-                </p>
-                <ul class="list-unstyled mb-4">
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Certyfikowani pracownicy</li>
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Ekologiczne środki</li>
-                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i> Gwarancja satysfakcji</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
 @code {
 
     private List<Order> topReviews;
-    private List<Order> displayReviews; // Lista, którą wyświetlamy (baza + mocki)
+    private List<Order> displayReviews; 
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Pobieramy prawdziwe opinie z bazy
         topReviews = await _orderService.GetTopReviewsAsync();
 
-        // 2. Tworzymy listę do wyświetlenia
         displayReviews = new List<Order>();
         if (topReviews != null) displayReviews.AddRange(topReviews);
 
-        // 3. Jeśli mamy mało opinii, dodajemy "sztuczne" dla lepszego efektu wizualnego
         if (displayReviews.Count < 3)
         {
             AddMockReviews();
@@ -195,7 +252,7 @@
 
     private void AddMockReviews()
     {
-        // To są przykładowe opinie, żeby karuzela ładnie wyglądała na początku
+        // To są  opinie na paczatek jak niema prawdziwych
         displayReviews.Add(new Order
         {
             Rating = 5,

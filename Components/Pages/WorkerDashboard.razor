@@ -155,7 +155,6 @@
     private string currentUserId;
     private bool showHistory = false; 
 
-    // FILTR LOGICZNY
     private IEnumerable<Order> FilteredTasks => showHistory
         ? myTasks.Where(o => o.Status == OrderStatus.Zakończone || o.Status == OrderStatus.Anulowane) // Archiwum
         : myTasks.Where(o => o.Status != OrderStatus.Zakończone && o.Status != OrderStatus.Anulowane); // Aktywne
@@ -184,7 +183,7 @@
     private async Task ChangeStatus(Order order, OrderStatus newStatus)
     {
         await _orderService.UpdateOrderStatusAsync(order.Id, newStatus);
-        await LoadTasks(); // Odśwież listę po zmianie
+        await LoadTasks();
     }
 
     private string GetBadgeClass(OrderStatus status) => status switch

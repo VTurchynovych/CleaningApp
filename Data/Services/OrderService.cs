@@ -91,7 +91,7 @@ namespace CleaningApp.Data.Services
             }
         }
 
-        // Metoda do pobierania zleceń konkretnego użytkownika (po nazwie/emailu)
+        // Metoda do pobierania zleceń konkretnego użytkownika 
         public async Task<List<Order>> GetUserOrdersAsync(string userName)
         {
             return await _context.Orders
@@ -101,6 +101,17 @@ namespace CleaningApp.Data.Services
                 .Where(o => o.Client != null && o.Client.UserName == userName)
                 .OrderByDescending(o => o.OrderDate)
                 .AsNoTracking()
+                .ToListAsync();
+        }
+        // Szuka po ID, a nie po nazwie
+        public async Task<List<Order>> GetClientOrdersAsync(string clientId)
+        {
+            return await _context.Orders
+                .Include(o => o.Service)
+                .Include(o => o.Worker)
+                .Include(o => o.Client)
+                .Where(o => o.ClientId == clientId) 
+                .OrderByDescending(o => o.OrderDate)
                 .ToListAsync();
         }
 

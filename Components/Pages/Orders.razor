@@ -288,11 +288,11 @@
 
     private async Task SaveOrder()
     {
-        if (isEditing)
-            await _orderService.UpdateOrderAsync(currentOrder);
-        else
+        if (isEditing)        
+            await _orderService.UpdateOrderAsync(currentOrder);        
+        else        
             await _orderService.AddOrderAsync(currentOrder);
-
+       
         showModal = false;
         await SearchData();
     }
