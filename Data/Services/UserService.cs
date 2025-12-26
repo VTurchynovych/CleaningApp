@@ -22,7 +22,6 @@ namespace CleaningApp.Data.Services
             _userManager = userManager;
         }
 
-        // Pobierz listę wszystkich użytkowników wraz z informacją o rolach
         public async Task<List<UserViewModel>> GetAllUsersAsync()
         {
             var users = await _userManager.Users.ToListAsync();

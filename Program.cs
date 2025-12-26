@@ -49,10 +49,8 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ServiceService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<PdfService>();
-builder.Services.AddScoped<CleaningApp.Data.DbSeeder>();
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -70,7 +68,6 @@ app.UseAntiforgery();
 
 app.MapRazorPages();
 
-// Mapujemy tylko komponenty Blazor
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
@@ -79,10 +76,6 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     await SeedRolesAndAdmin.InitializeAsync(services);
-    // 2. Us³ugi (Nasz nowy plik)
-    var dbSeeder = services.GetRequiredService<CleaningApp.Data.DbSeeder>();
-    await dbSeeder.SeedAsync();
-
 }
 
 app.Run();

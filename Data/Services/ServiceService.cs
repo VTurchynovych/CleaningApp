@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CleaningApp.Data.Services
 {
-    // Serwis do zarządzania Usługami (np. "Mycie okien")
+    // Serwis do zarządzania Usługami 
     public class ServiceService
     {
         private readonly ApplicationDbContext _context;

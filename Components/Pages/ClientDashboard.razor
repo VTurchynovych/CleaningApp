@@ -137,7 +137,6 @@
     }
 </div>
 
-@* --- NOWY MODAL MULTI-ORDER (BEZ TOASTÓW) --- *@
 @if (isOrderModalOpen)
 {
     <div class="modal-backdrop fade show"></div>
@@ -200,7 +199,6 @@
                                 }
                             </div>
 
-                            @* --- BŁĄD WALIDACJI USŁUG --- *@
                             @if (showServiceError)
                             {
                                 <div class="text-danger small mt-1 fw-bold">
@@ -219,7 +217,6 @@
                                 <label class="form-label">Adres realizacji <span class="text-danger">*</span></label>
                                 <InputText class="form-control" @bind-Value="tempOrderModel.Address" placeholder="Ulica, numer domu/mieszkania, miasto" />
 
-                                @* --- BŁĄD WALIDACJI ADRESU --- *@
                                 @if (showAddressError)
                                 {
                                     <div class="text-danger small mt-1 fw-bold">Proszę wpisać adres realizacji!</div>
@@ -292,7 +289,6 @@
     private string currentUserId;
     private bool showHistory = false;
 
-    // --- ZMIENNE DO MODALA I WALIDACJI ---
     private bool isOrderModalOpen = false;
     private Order tempOrderModel = new Order();
     private HashSet<int> selectedServiceIds = new HashSet<int>();
@@ -301,7 +297,7 @@
     private string serviceSearchText = "";
     private string sortOption = "name";
 
-    // Flagi błędów (zamiast Toastów)
+    // Flagi błędów 
     private bool showAddressError = false;
     private bool showServiceError = false;
 
@@ -395,7 +391,6 @@
         else
             selectedServiceIds.Remove(serviceId);
 
-        // Jeśli użytkownik coś kliknął, chowamy błąd usług
         if (selectedServiceIds.Any()) showServiceError = false;
     }
 
@@ -420,7 +415,7 @@
         }
         showAddressError = false;
 
-        // 2. Walidacja Usług (Nowa logika)
+        // 2. Walidacja Usług 
         if (!selectedServiceIds.Any())
         {
             showServiceError = true;

@@ -174,7 +174,6 @@
         services = await _serviceService.GetServicesAsync();
     }
 
-    // --- LOGIKA FILTROWANIA ---
     private IEnumerable<Service> GetFilteredServices()
     {
         if (services == null) return Enumerable.Empty<Service>();
@@ -209,7 +208,6 @@
 
     private void BookService(int serviceId)
     {
-        // Przekieruj do panelu z parametrem ?serviceId=X
         _nav.NavigateTo($"/client-dashboard?serviceId={serviceId}");
     }
 }
