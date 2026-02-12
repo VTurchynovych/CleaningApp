@@ -33,7 +33,7 @@ The system utilizes **Blazor Server** for a responsive, interactive user experie
 | ![Dashboard](screenshots/dashboard1.png) | ![Users](screenshots/panel.png) |
 
 | First View | 
-| ![First view](screenshots/mobile_view.png) |
+ ![First view](screenshots/mobile_view.png) 
 
 ## 🛠️ Tech Stack
 
