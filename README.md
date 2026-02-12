@@ -28,9 +28,9 @@ The system utilizes **Blazor Server** for a responsive, interactive user experie
 |:---:|:---:|
 | ![Dashboard](screenshots/dashboard.png) | ![Order Form](screenshots/order_form.png) |
 
-| Mobile View | PDF Report |
+| First View | PDF Report |
 |:---:|:---:|
-| ![Mobile](screenshots/mobile_view.png) | ![PDF](screenshots/pdf_example.png) |
+| ![First view](screenshots/mobile_view.png) | ![PDF](screenshots/pdf_example.png) |
 
 ## 🛠️ Tech Stack
 
