@@ -80,8 +80,7 @@ The solution follows a modular architecture:
 
 ## 📬 Contact
 
-**Vladyslav [Twoje Nazwisko]** *Junior .NET Developer* Email: [Twój Email]  
-LinkedIn: [Link do Twojego profilu]
-
+**Vladyslav Turchynovych** *Junior .NET Developer* Email: prolinger921@gmail.com  
+LinkedIn: https://www.linkedin.com/in/vladyslav-turchynovych-65a797256/
 ---
 ⭐️ *If you found this project interesting, please give it a star!*
