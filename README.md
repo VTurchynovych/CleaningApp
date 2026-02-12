@@ -24,13 +24,17 @@ The system utilizes **Blazor Server** for a responsive, interactive user experie
 
 ## 📸 Screenshots
 
-| Dashboard | Order Form |
+| Client | Order Form |
 |:---:|:---:|
 | ![Dashboard](screenshots/dashboard.png) | ![Order Form](screenshots/order_form.png) |
 
-| First View | PDF Report |
+| Admin | Users Panel |
 |:---:|:---:|
-| ![First view](screenshots/mobile_view.png) | ![PDF](screenshots/pdf_example.png) |
+| ![Dashboard](screenshots/dashboard1.png) | ![Users](screenshots/panel.png) |
+
+| First View | 
+|:---:|:---:|
+| ![First view](screenshots/mobile_view.png) |
 
 ## 🛠️ Tech Stack
 
