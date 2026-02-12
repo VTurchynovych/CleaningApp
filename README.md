@@ -84,6 +84,7 @@ The solution follows a modular architecture:
 ## 📬 Contact
 
 **Vladyslav Turchynovych**
+
 Email: prolinger921@gmail.com  
 LinkedIn: https://www.linkedin.com/in/vladyslav-turchynovych-65a797256/
 ---
